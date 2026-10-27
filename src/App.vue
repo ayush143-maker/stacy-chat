@@ -39,6 +39,7 @@ const filteredChats = computed(() => {
 })
 const connected = computed(() => Boolean(apiKey.value && models.value.length))
 const currentModel = computed(() => models.value.find(model => model.name === selectedModel.value))
+const canSend = computed(() => prompt.value.trim().length > 0 && !isGenerating.value)
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.() || ('stacy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9))
@@ -145,7 +146,7 @@ async function connectKey() {
     apiKey.value = key
     models.value = supported
     if (!supported.some(item => item.name === selectedModel.value)) selectedModel.value = supported[0].name
-    statusMessage.value = 'Connected. ' + supported.length + ' compatible models found.'
+    statusMessage.value = ''
     activeTab.value = 'chat'
   } catch (error) {
     connectionError.value = error.message || 'Could not connect to Google.'
@@ -246,22 +247,18 @@ onMounted(loadChats)
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand-cluster">
-        <button class="icon-button mobile-menu" aria-label="Open conversations" @click="sidebarOpen = !sidebarOpen"><Menu :size="19" /></button>
-        <div class="brand-mark" aria-hidden="true"><MessageCircle :size="20" stroke-width="2.3" /></div><div class="brand-name">stacy<span class="brand-period">.</span></div>
-      </div>
+      <div class="brand-cluster"><div class="brand-name">Stacy</div></div>
       <nav class="main-tabs" aria-label="Main sections">
         <button :class="['nav-tab', { selected: activeTab === 'chat' }]" @click="activeTab = 'chat'"><MessageSquare :size="16" /><span>Chat</span></button>
         <button :class="['nav-tab', { selected: activeTab === 'key' }]" @click="activeTab = 'key'"><KeyRound :size="16" /><span>API key</span><span :class="['connection-dot', { online: connected }]"></span></button>
       </nav>
-      <div class="topbar-right"><span :class="['connection-label', { connected }]"><span class="status-dot"></span>{{ connected ? 'Connected' : 'Not connected' }}</span></div>
     </header>
 
     <div class="workspace">
       <div v-if="sidebarOpen && activeTab === 'chat'" class="mobile-scrim" @click="sidebarOpen = false"></div>
       <aside v-if="activeTab === 'chat'" :class="['sidebar', { 'sidebar-open': sidebarOpen }]">
         <div class="sidebar-heading"><span>Your chats</span><button class="icon-button small" title="Start a new chat" aria-label="New chat" @click="newChat"><Plus :size="17" /></button></div>
-        <button class="new-chat-button" @click="newChat"><Plus :size="17" /><span>New conversation</span><span class="shortcut">N</span></button>
+        <button class="new-chat-button" @click="newChat"><Plus :size="17" /><span>New conversation</span></button>
         <label class="search-field"><Search :size="15" /><input v-model="searchQuery" aria-label="Search conversations" placeholder="Find a conversation" /><button v-if="searchQuery" class="mini-clear" aria-label="Clear search" @click="searchQuery = ''"><X :size="13" /></button></label>
         <div class="conversation-label">RECENT</div>
         <div class="conversation-list">
@@ -282,7 +279,7 @@ onMounted(loadChats)
       <main class="main-panel">
         <section v-if="activeTab === 'chat'" class="chat-view">
           <div class="chat-toolbar">
-            <div class="chat-heading"><span class="eyebrow">{{ activeChat ? 'CONVERSATION' : 'YOUR SPACE' }}</span><h1>{{ activeChat?.title || 'What’s on your mind?' }}</h1></div>
+            <div class="chat-heading"><div class="chat-heading-titleline"><button class="icon-button history-toggle" title="Chat history" aria-label="Open chat history" @click="sidebarOpen = !sidebarOpen"><Menu :size="16" /></button><div class="heading-copy"><span class="eyebrow">{{ activeChat ? 'CONVERSATION' : 'YOUR SPACE' }}</span><h1>{{ activeChat?.title || 'What’s on your mind?' }}</h1></div></div></div>
             <div class="toolbar-controls"><div class="model-control"><span class="control-caption">MODEL</span><select v-model="selectedModel" :disabled="!connected" aria-label="Choose Gemini model"><option v-if="!models.length" value="">Connect a key first</option><option v-for="model in models" :key="model.name" :value="model.name">{{ model.displayName || model.name.replace('models/', '') }}</option></select></div><div class="temperature-control"><label for="temperature">Creativity <strong>{{ Number(temperature).toFixed(1) }}</strong></label><input id="temperature" v-model.number="temperature" type="range" min="0" max="2" step="0.1" /></div></div>
           </div>
           <div ref="messagesEl" class="messages-scroll">
